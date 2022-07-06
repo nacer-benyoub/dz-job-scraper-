@@ -28,9 +28,9 @@ def scarpe_jobs(soup):
         soup (bs4.BeautifulSoup): BeautifulSoup object
 
     Returns:
-        list: list of jobs as dictionaries
+        list: list of dictionaries
     """
-    li_job_class = "separator-top"
+    li_job_class = "separator-bot"
     div_job_class = "row-fluid job-details pointer"
     job_web_elements = soup.find_all("li", {"class": li_job_class})
     jobs = []
