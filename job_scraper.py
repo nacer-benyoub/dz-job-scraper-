@@ -21,7 +21,7 @@ def make_soup(limit=50, page=1):
     soup = bs(response.text, 'html.parser')
     return soup
 
-def scarpe_jobs(soup):
+def scrape_jobs(soup):
     """Scrape job details from the BeautifulSoup object
 
     Args:
@@ -52,9 +52,40 @@ def scarpe_jobs(soup):
                         })
     return jobs
 
-soup = make_soup()
-jobs = scarpe_jobs(soup)
-jobs_pprint = json.dumps(jobs, indent=1, allow_nan=True, ensure_ascii=False)
-print(jobs_pprint)
-with open("jobs1.json", 'a+') as f:
-    f.write(jobs_pprint)
+def jobs_to_json(jobs, filename, mode='a+'):
+    """Save job data to a json file
+
+    Args:
+        jobs (_type_): list of jobs as dictionaries
+        filename (_type_): json filename
+        mode (str, optional): file access mode. Defaults to 'a+'.
+    """    
+    jobs_pprint = json.dumps(jobs, indent=1, allow_nan=True, ensure_ascii=False)
+    print(f"Saving job data to json file {filename}...")
+    with open(filename, mode) as f:
+        f.write(jobs_pprint)
+    print("Done")
+
+def jobs_to_csv(jobs, filename, mode='a'):
+    """Save job data to a csv file
+
+    Args:
+        jobs (_type_): list of jobs as dictionaries
+        filename (_type_): csv filename
+        mode (str, optional): file access mode. Defaults to 'a+'.
+    """    
+    df = pd.DataFrame(jobs)
+    print(df.head())
+    print(f"Saving job data to csv file {filename}...")
+    df.to_csv(filename, mode=mode index=False)
+    print("Done")
+    
+if __name__=="__main__":
+    soup = make_soup()
+    jobs = scrape_jobs(soup)
+    json_filename = "job_test.json"
+    csv_filename = "job_test.csv"
+    jobs_to_json(jobs, json_filename)
+    jobs_to_csv(jobs, csv_filename)
+
+
