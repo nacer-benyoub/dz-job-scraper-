@@ -75,9 +75,8 @@ def jobs_to_csv(jobs, filename, mode='a'):
         mode (str, optional): file access mode. Defaults to 'a+'.
     """    
     df = pd.DataFrame(jobs)
-    print(df.head())
     print(f"Saving job data to csv file {filename}...")
-    df.to_csv(filename, mode=mode index=False)
+    df.to_csv(filename, mode=mode, index=False)
     print("Done")
     
 if __name__=="__main__":
