@@ -1,3 +1,4 @@
+import os.path as path
 import requests
 import json
 import pandas as pd
@@ -52,20 +53,6 @@ def scrape_jobs(soup):
                         })
     return jobs
 
-def jobs_to_json(jobs, filename, mode='a+'):
-    """Save job data to a json file
-
-    Args:
-        jobs (_type_): list of jobs as dictionaries
-        filename (_type_): json filename
-        mode (str, optional): file access mode. Defaults to 'a+'.
-    """    
-    jobs_pprint = json.dumps(jobs, indent=1, allow_nan=True, ensure_ascii=False)
-    print(f"Saving job data to json file {filename}...")
-    with open(filename, mode) as f:
-        f.write(jobs_pprint)
-    print("Done")
-
 def jobs_to_csv(jobs, filename, mode='a'):
     """Save job data to a csv file
 
@@ -76,16 +63,39 @@ def jobs_to_csv(jobs, filename, mode='a'):
     """    
     df = pd.DataFrame(jobs)
     print(df.head())
-    print(f"Saving job data to csv file {filename}...")
     df.to_csv(filename, mode=mode, index=False)
-    print("Done")
+
+def jobs_to_json(jobs, filename, mode='a+'):
+    """Save job data to a json file
+
+    Args:
+        jobs (_type_): list of jobs as dictionaries
+        filename (_type_): json filename
+        mode (str, optional): file access mode. Defaults to 'a+'.
+    """    
+    if path.exists(filename):
+        with open(filename) as f:
+            existing_data = json.load(f)
+        
+        if 'a' in mode and len(existing_data):
+            with open(filename, "w") as f:
+                data = existing_data + jobs
+                json.dump(data, f, indent=1, allow_nan=True, ensure_ascii=False)
+            return
+            
+    with open(filename, "w") as f:
+        json.dump(jobs, f, indent=1, allow_nan=True, ensure_ascii=False)
     
 if __name__=="__main__":
     soup = make_soup()
     jobs = scrape_jobs(soup)
     json_filename = "job_test.json"
     csv_filename = "job_test.csv"
+    print(f"Saving job data to json file {json_filename}...")
     jobs_to_json(jobs, json_filename)
+    print("Done", end="\n")
+    print(f"Saving job data to json file {csv_filename}...")
     jobs_to_csv(jobs, csv_filename)
-
-
+    print("Done")
+    
+    # add logic to add only new jobs and avoid redundancy
