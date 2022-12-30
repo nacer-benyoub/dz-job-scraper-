@@ -1,10 +1,12 @@
+import datetime
 import os.path as path
+from time import sleep
 import requests
 import json
 import pandas as pd
 from bs4 import BeautifulSoup as bs
 
-def make_soup(limit=50, page=1):
+def make_soup(limit=50, page=1, up_to_page=False):
     """Generate BeautifulSoup object for the local variable 'url'
 
     Args:
@@ -14,12 +16,24 @@ def make_soup(limit=50, page=1):
     Returns:
         bs4.BeautifulSoup: BeautifulSoup object
     """
-    start = (page-1) * 50
-    url = "https://www.emploitic.com/offres-d-emploi?limit={0}&start={1}".format(limit, start)
     # get the user agent from 'edge://version/' in Microsoft Edge 
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.124 Safari/537.36 Edg/102.0.1245.44'}
-    response = requests.get(url, headers=headers)
-    soup = bs(response.text, 'html.parser')
+    markup = ""
+    if up_to_page:
+        for p in range(page):
+            start = p * limit
+            url = "https://www.emploitic.com/offres-d-emploi?limit={0}&start={1}".format(limit, start)
+            sleep(5)
+            response = requests.get(url, headers=headers)
+            markup += response.text
+    
+    else:        
+        start = (page-1) * limit
+        url = "https://www.emploitic.com/offres-d-emploi?limit={0}&start={1}".format(limit, start)
+        response = requests.get(url, headers=headers)
+        mmakup = response.text
+    
+    soup = bs(markup, 'html.parser')
     return soup
 
 def scrape_jobs(soup):
@@ -36,21 +50,52 @@ def scrape_jobs(soup):
     job_web_elements = soup.find_all("li", {"class": li_job_class})
     jobs = []
     for job in job_web_elements:
-        details = job.get_text().split('\n')
-        details = [d.strip() for d in details if len(d) > 0]
-        if len(details) > 4:
-            title = details[0]
-            company = details[1]
-            location = details[2]
-            rank = details[4]
+        initial_details = job.get_text().split('\n')
+        initial_details = [d.strip() for d in initial_details if len(d) > 0]
+        if len(initial_details) > 4:
             job_link_div_class = "bloc-right"
-            link = job.find("div", {"class": job_link_div_class}).get("onclick",default=pd.NA).replace(";", "=").split('=')[1].strip("' ")
-            jobs.append({"title": title,
-                         "company": company,
-                         "location": location,
-                         "rank": rank,
-                         "link": link
-                        })
+            job_link = job.find("div", {"class": job_link_div_class}).get("onclick",default=pd.NA).replace(";", "=").split('=')[1].strip("' ")
+            job_details = {
+            "title": initial_details[0],
+            "company": initial_details[1],
+            "Lieu de travail": initial_details[2],
+            "publish_date": initial_details[3],
+            "Niveau de poste": initial_details[4]
+            }
+            
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.124 Safari/537.36 Edg/102.0.1245.44'}
+            sleep(5)
+            response = requests.get(job_link, headers=headers)
+            job_page_soup = bs(response.text, 'html.parser')
+            # 2 forms of job details page
+            job_details_div_class_1 = "spaced-top row-fluid"
+            job_details_div_class_2 = "span12 spaced-bot apply-info"
+            job_details_text_1 = job_page_soup.find("div", {"class": job_details_div_class_1}).get_text()
+            job_details_2_element = job_page_soup.find("div", {"class": job_details_div_class_2})
+            job_details_text_2 = job_details_2_element.get_text() if job_details_2_element else ""
+            job_details_list = job_details_text_2.split('\n') if job_details_text_2 else job_details_text_1.split('\n')
+            job_details_list = [d.strip() for d in job_details_list if len(d) > 0]
+            job_details_list = {k:v for k, v in zip(job_details_list[::2], job_details_list[1::2]) if k not in ("Lieu de travail", "Niveau de poste")}
+            job_details = dict( **job_details, **job_details_list )
+            job_details["link"] = job_link
+            
+            # reformat publish_date
+            publish_date = job_details["publish_date"]
+            today = datetime.date.today()
+            if publish_date == "Aujourd'hui":
+                job_details["publish_date"] = today.strftime("%d %B %Y")
+            elif publish_date == "Hier":
+                job_details["publish_date"] = (today - datetime.timedelta(days=1)).strftime("%d %B %Y")
+            elif publish_date == "Avant hier":
+                job_details["publish_date"] = (today - datetime.timedelta(days=2)).strftime("%d %B %Y")
+            elif len(publish_date.split()) < 3:
+                job_details["publish_date"] = publish_date + today.strftime(" %Y")
+                
+                
+            print(json.dumps(job_details, indent=1, allow_nan=True, ensure_ascii=False))
+            
+            
+            jobs.append(job_details)
     return jobs
 
 def combine_unique(df1: pd.DataFrame, df2: pd.DataFrame, *dfs: list[pd.DataFrame]) -> pd.DataFrame:
@@ -116,15 +161,16 @@ def jobs_to_json(jobs, filename, mode='a+'):
     #     json.dump(jobs, f, indent=1, allow_nan=True, ensure_ascii=False)
     
 if __name__=="__main__":
-    soup = make_soup()
+    soup = make_soup(page=4, up_to_page=True)
     jobs = scrape_jobs(soup)
     json_filename = "job_test.json"
     csv_filename = "job_test.csv"
+    
     print(f"Saving job data to json file {json_filename}...")
-    jobs_to_json(jobs, json_filename)
+    jobs_to_json(jobs, json_filename, mode='w')
     print("Done", end="\n")
     print(f"Saving job data to csv file {csv_filename}...")
-    jobs_to_csv(jobs, csv_filename)
+    jobs_to_csv(jobs, csv_filename, mode='w')
     print("Done")
     
-    # scrape more information about the jobs
+    # add functionality to scrape multiple pages (e.g up to page 10)
