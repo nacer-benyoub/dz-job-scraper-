@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import os.path as path
 from time import sleep
 import requests
@@ -76,24 +76,30 @@ def scrape_jobs(soup):
             job_details_list = job_details_text_2.split('\n') if job_details_text_2 else job_details_text_1.split('\n')
             job_details_list = [d.strip() for d in job_details_list if len(d) > 0]
             job_details_list = {k:v for k, v in zip(job_details_list[::2], job_details_list[1::2]) if k not in ("Lieu de travail", "Niveau de poste")}
+            # concatenate details dicts
             job_details = dict( **job_details, **job_details_list )
+            # add link and scraped_time keys
             job_details["link"] = job_link
+            job_details["scraped_time"] = dt.datetime.today()
             
-            # reformat publish_date
+            # reformat dates
+            today = dt.date.today()
             publish_date = job_details["publish_date"]
-            today = datetime.date.today()
             if publish_date == "Aujourd'hui":
                 job_details["publish_date"] = today.strftime("%d %B %Y")
             elif publish_date == "Hier":
-                job_details["publish_date"] = (today - datetime.timedelta(days=1)).strftime("%d %B %Y")
+                job_details["publish_date"] = (today - dt.timedelta(days=1)).strftime("%d %B %Y")
             elif publish_date == "Avant hier":
-                job_details["publish_date"] = (today - datetime.timedelta(days=2)).strftime("%d %B %Y")
+                job_details["publish_date"] = (today - dt.timedelta(days=2)).strftime("%d %B %Y")
             elif len(publish_date.split()) < 3:
                 job_details["publish_date"] = publish_date + today.strftime(" %Y")
-                
-                
-            print(json.dumps(job_details, indent=1, allow_nan=True, ensure_ascii=False))
             
+            expiry_date = job_details["Date d'expiration"]
+            if len(expiry_date.split()) < 3:
+                expiry_date = expiry_date + today.strftime(" %Y")
+                
+            print(json.dumps(job_details, indent=1, allow_nan=True, ensure_ascii=False, default=str))
+            print(f"{job_web_elements.index(job) + 1} / {len(job_web_elements)}")
             
             jobs.append(job_details)
     return jobs
@@ -125,7 +131,7 @@ def jobs_to_csv(jobs, filename, mode='a'):
     if 'a' in mode and path.exists(filename):
             existing_jobs = pd.read_csv(filename)
             data = combine_unique(new_jobs, existing_jobs)
-            data.to_csv(filename, mode='w')
+            data.to_csv(filename, mode='w', index=False)
             return
     
     new_jobs.to_csv(filename, mode=mode, index=False)
@@ -161,16 +167,15 @@ def jobs_to_json(jobs, filename, mode='a+'):
     #     json.dump(jobs, f, indent=1, allow_nan=True, ensure_ascii=False)
     
 if __name__=="__main__":
-    soup = make_soup(page=4, up_to_page=True)
+    soup = make_soup(page=3, up_to_page=True)
     jobs = scrape_jobs(soup)
     json_filename = "job_test.json"
     csv_filename = "job_test.csv"
     
     print(f"Saving job data to json file {json_filename}...")
-    jobs_to_json(jobs, json_filename, mode='w')
+    jobs_to_json(jobs, json_filename)
     print("Done", end="\n")
     print(f"Saving job data to csv file {csv_filename}...")
-    jobs_to_csv(jobs, csv_filename, mode='w')
+    jobs_to_csv(jobs, csv_filename)
     print("Done")
     
-    # add functionality to scrape multiple pages (e.g up to page 10)
