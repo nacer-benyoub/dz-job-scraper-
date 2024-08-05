@@ -1,4 +1,4 @@
-.vscode/*
+.vscode
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
@@ -10,15 +10,12 @@
 
 # Built Visual Studio Code Extensions
 *.vsix
-
-# GeoJSON and shp
-*.geojson
-dza_admbnda_unhcr2020_shp
-
-# Test files
-test*
-
-data
-jobs.ipynb
-
 pyproject.toml
+dza_admbnda_unhcr2020_shp
+dz-cities-wilayas-points.geojson
+data
+job_test.csv
+job_test.json
+__pycache__
+jobs.ipynb
+test.py
