@@ -17,8 +17,7 @@ def make_soup_of_page(limit=50, page=1, up_to_page=False):
     Returns:
         bs4.BeautifulSoup: BeautifulSoup object
     """
-    # get the user agent from 'edge://version/' in Microsoft Edge 
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.124 Safari/537.36 Edg/102.0.1245.44'}
+    headers = {'User-Agent': USER_AGENT}
     markup = ""
     if up_to_page:
         for p in range(page):
@@ -48,12 +47,12 @@ def make_soup_from_start(start=0, limit=50):
         bs4.BeautifulSoup: BeautifulSoup object
     """
     # get the user agent from 'edge://version/' in Microsoft Edge 
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 Edg/109.0.1518.61'}
+    headers = {'User-Agent': USER_AGENT}
     url = "https://www.emploitic.com/offres-d-emploi?limit={0}&start={1}".format(limit, start)
     response = requests.get(url, headers=headers)
     markup = response.text
     
-    soup = bs(markup, 'html.parser')
+    soup = bs(markup, 'lxml')
     return soup
 
 def scrape_jobs(soup):
@@ -65,15 +64,16 @@ def scrape_jobs(soup):
     Returns:
         list: list of dictionaries
     """
-    li_job_class = "separator-bot"
+    li_job_class = "MuiListItem-root MuiListItem-gutters MuiListItem-padding mui-8v06ou"
+    li_job_data_text_id = "announce-list-item"
     div_job_class = "row-fluid job-details pointer"
-    job_web_elements = soup.find_all("li", {"class": li_job_class})
+    job_web_elements = soup.find_all("li", {"class": li_job_class, "data-testid": li_job_data_text_id})
     jobs = []
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 Edg/109.0.1518.61'}
+    headers = {'User-Agent': USER_AGENT}
     for job in job_web_elements:
         # Get initial details from job card
         initial_details = job.get_text().split('\n')
-        initial_details = [d.strip() for d in initial_details if len(d) > 0]
+        initial_details = [d.strip() for d in initial_details if d]
         if len(initial_details) > 4:
             job_link_div_class = "bloc-right"
             job_link = job.find("div", {"class": job_link_div_class}).get("onclick",default=pd.NA).replace(";", "=").split('=')[1].strip("' ")
@@ -204,16 +204,20 @@ def jobs_to_json(jobs, filename, mode='a+'):
     # with open(filename, mode) as f:
     #     json.dump(jobs, f, indent=1, allow_nan=True, ensure_ascii=False)
     
-if __name__=="__main__":
-    soup = make_soup_from_start(start=1800, limit=82)
+def main():
+    soup = make_soup_from_start()
     jobs = scrape_jobs(soup)
-    json_filename = "job_test.json"
-    csv_filename = "job_test.csv"
+    json_filename = r"./data/job_test_1.json"
+    csv_filename = r"./data/job_test_1.csv"
     
     print(f"Saving job data to json file {json_filename}...")
-    jobs_to_json(jobs, json_filename)
+    # jobs_to_json(jobs, json_filename)
     print("Done", end="\n")
     print(f"Saving job data to csv file {csv_filename}...")
-    jobs_to_csv(jobs, csv_filename)
+    # jobs_to_csv(jobs, csv_filename)
     print("Done")
     
+if __name__=="__main__":
+    # get the user agent from 'edge://version/' in Microsoft Edge or 'chrome://version' in Chrome/Opera
+    USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 OPR/109.0.0.0'
+    main()

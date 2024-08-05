@@ -10,3 +10,15 @@
 
 # Built Visual Studio Code Extensions
 *.vsix
+
+# GeoJSON and shp
+*.geojson
+dza_admbnda_unhcr2020_shp
+
+# Test files
+test*
+
+data
+jobs.ipynb
+
+pyproject.toml
